@@ -8,15 +8,17 @@ Ask a business question in **English or Arabic** about a Riyadh food-delivery ma
 graph TD;
 	__start__([start]) --> generate;
 	generate --> execute;
-	execute -.ok / out of attempts.-> __end__([end]);
+	execute -.ok / blocked / out of attempts.-> answer;
 	execute -.error, no memory.-> generate;
 	execute -.error, Reflexion.-> reflect;
 	reflect -->|lesson saved to lessons.json| generate;
+	answer --> __end__([end]);
 ```
 
 - **generate**: the LLM writes one SQLite query from the schema, any stored lessons, and the previous error.
 - **execute**: runs the query in a read-only connection (`mode=ro`) and blocks anything that isn't a single SELECT/WITH. Errors and empty results are both counted as failures.
 - **reflect**: the LLM turns the failure into one general lesson and saves it to `lessons.json`.
+- **answer**: words the result rows as 1-2 sentences in the question's language. With no rows there is nothing to word, so it returns a fixed refusal ("I can't answer that from this data." / "لا أستطيع الإجابة من هذه البيانات.") and spends no LLM call - it can never invent a number out of an empty result. A query the read-only guard blocks skips the retry loop and goes straight here.
 
 ## Data
 

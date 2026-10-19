@@ -2,6 +2,8 @@
 
 generate SQL -> execute (read-only) -> on error: reflect, store a lesson, retry.
 Lessons persist in lessons.json and are fed into future questions.
+Whatever happens, the run ends at `answer`, which words the result (or the
+refusal) in the language of the question.
 """
 import json
 import os
@@ -28,14 +30,27 @@ else:
     llm = ChatOllama(model=os.getenv("MODEL", "llama3.2"), temperature=0)
 
 
+REFUSAL = {
+    "en": "I can't answer that from this data.",
+    "ar": "لا أستطيع الإجابة من هذه البيانات.",
+}
+
+
 class State(TypedDict, total=False):
     question: str
     sql: str
     rows: list
     error: str
+    answer: str
+    blocked: bool
     attempts: int
     max_attempts: int
     use_lessons: bool
+
+
+def lang(text: str) -> str:
+    """'ar' if the text contains any Arabic letter, else 'en'."""
+    return "ar" if any("\u0600" <= ch <= "\u06ff" for ch in text) else "en"
 
 
 def schema() -> str:
@@ -92,6 +107,8 @@ def execute(state: State) -> State:
     try:
         rows = run_sql(state["sql"])
         return {"rows": rows, "error": "" if rows else "query returned no rows"}
+    except ValueError as e:  # the read-only guard refused it; a retry cannot help
+        return {"rows": [], "error": str(e), "blocked": True}
     except Exception as e:
         return {"rows": [], "error": str(e)}
 
@@ -108,9 +125,29 @@ def reflect(state: State) -> State:
     return {}
 
 
+def answer(state: State) -> State:
+    """Word the result in 1-2 sentences, in the question's language.
+
+    With no rows there is nothing to word, so this returns the fixed refusal and
+    spends no LLM call - and so can never invent a number out of an empty result.
+    """
+    rows = state.get("rows") or []
+    if not rows:
+        return {"answer": REFUSAL[lang(state["question"])]}
+    text = _text(llm.invoke(
+        f"Question: {state['question']}\n"
+        f"SQL that produced the result:\n{state['sql']}\n"
+        f"Result rows: {rows[:50]}\n"
+        "Answer the question in 1-2 sentences, in the same language as the question. "
+        "Use only numbers and names that appear in the result rows; invent nothing. "
+        "Return only the answer."
+    ).content).strip()
+    return {"answer": text}
+
+
 def route(state: State) -> str:
-    if not state["error"] or state["attempts"] >= state.get("max_attempts", 3):
-        return END
+    if state.get("blocked") or not state["error"] or state["attempts"] >= state.get("max_attempts", 3):
+        return "answer"
     return "reflect" if state.get("use_lessons") else "generate"
 
 
@@ -118,10 +155,12 @@ g = StateGraph(State)
 g.add_node("generate", generate)
 g.add_node("execute", execute)
 g.add_node("reflect", reflect)
+g.add_node("answer", answer)
 g.set_entry_point("generate")
 g.add_edge("generate", "execute")
-g.add_conditional_edges("execute", route, {"reflect": "reflect", "generate": "generate", END: END})
+g.add_conditional_edges("execute", route, {"reflect": "reflect", "generate": "generate", "answer": "answer"})
 g.add_edge("reflect", "generate")
+g.add_edge("answer", END)
 graph = g.compile()
 
 
@@ -132,3 +171,4 @@ def ask(question: str, use_lessons=True, max_attempts=3) -> State:
 if __name__ == "__main__":
     out = ask(" ".join(sys.argv[1:]) or "Which district has the highest total order value?")
     print(out["sql"], "\n", out["rows"][:20], "\n", out["error"] or "ok", f"({out['attempts']} attempts)")
+    print("\n" + out["answer"])
