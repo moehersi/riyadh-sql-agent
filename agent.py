@@ -12,14 +12,20 @@ from pathlib import Path
 from typing import TypedDict
 
 from dotenv import load_dotenv
-from langchain_ollama import ChatOllama
 from langgraph.graph import END, StateGraph
 
 load_dotenv()
 ROOT = Path(__file__).parent
 DB = ROOT / "riyadh.db"
 LESSONS = ROOT / "lessons.json"
-llm = ChatOllama(model=os.getenv("MODEL", "llama3.2"), temperature=0)
+
+BACKEND = os.getenv("BACKEND", "gemini")
+if BACKEND == "gemini":
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    llm = ChatGoogleGenerativeAI(model=os.getenv("MODEL", "gemini-2.0-flash"), temperature=0)
+else:
+    from langchain_ollama import ChatOllama
+    llm = ChatOllama(model=os.getenv("MODEL", "llama3.2"), temperature=0)
 
 
 class State(TypedDict, total=False):

@@ -26,17 +26,24 @@ The Riyadh delivery market dataset (star schema): `customers` (300), `orders` (2
 
 The eval set is 20 questions (17 English, 3 Arabic), each with a known-correct SQL answer in `questions.json`. `python eval.py` writes `results.md`.
 
-| Mode | Accuracy | Avg attempts |
-|---|---|---|
-| Baseline (1 try, no lessons) | _run eval.py_ | |
-| Reflexion (3 tries + lessons) | _run eval.py_ | |
+| Mode | Accuracy | Avg attempts | Time (s) |
+|---|---|---|---|
+| Baseline, llama3.2 (1 try, no lessons) | 11/20 (55%) | 1.00 | 92 |
+| Reflexion, llama3.2 (3 tries + lessons) | 10/20 (50%) | 1.30 | 133 |
+| Gemini | _run eval.py_ | | |
+
+llama3.2 (local, free, 3B) was the first backend tried — Reflexion actually
+scored *worse* than a single try, likely too small a model to use its own
+self-written lessons well. Gemini is the current default for better SQL
+accuracy, still free.
 
 ## Run
 
 ```bash
 python -m venv .venv && .venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-ollama pull llama3.2                             # one-time, local model, no API key
+copy .env.example .env
+# edit .env: paste your free key from https://aistudio.google.com/app/apikey
 python load_db.py                                # builds riyadh.db
 python agent.py "Which district has the highest total order value?"
 python agent.py "ما الحي الذي فيه أكبر عدد من الطلبات؟"
@@ -44,9 +51,10 @@ python eval.py                                   # baseline vs Reflexion
 pytest -q                                        # safety tests
 ```
 
-Needs `ollama serve` running in the background (the Ollama app does this
-automatically once installed). To use a different local model, set
-`MODEL=<name>` in `.env` (copy `.env.example` first).
+Backend is picked by `BACKEND` in `.env` — `gemini` (default, needs
+`GOOGLE_API_KEY`) or `ollama` (fully local/free, needs `ollama pull llama3.2`
+and `ollama serve` running). `MODEL` picks the specific model within
+whichever backend.
 
 ## Responsible AI
 
@@ -56,4 +64,4 @@ automatically once installed). To use a different local model, set
 
 ## Stack
 
-Python, LangGraph, LangChain (Ollama, local), SQLite, pytest.
+Python, LangGraph, LangChain (Gemini or local Ollama), SQLite, pytest.
