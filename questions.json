@@ -1,0 +1,22 @@
+[
+  {"q": "How many customers are there in total?", "sql": "SELECT COUNT(*) FROM customers"},
+  {"q": "How many orders were cancelled?", "sql": "SELECT COUNT(*) FROM orders WHERE is_cancelled = 1"},
+  {"q": "Which order category has the most orders?", "sql": "SELECT category FROM orders GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1"},
+  {"q": "What is the average order value in SAR, rounded to 2 decimals?", "sql": "SELECT ROUND(AVG(order_value_sar), 2) FROM orders"},
+  {"q": "Total order value in SAR per category, highest first.", "sql": "SELECT category, ROUND(SUM(order_value_sar), 2) FROM orders GROUP BY category ORDER BY 2 DESC"},
+  {"q": "How many customers came from each acquisition channel?", "sql": "SELECT acquisition_channel, COUNT(*) FROM customers GROUP BY acquisition_channel"},
+  {"q": "What is the average lifetime value (ltv_sar) of Saudi vs Expat customers, rounded to 0 decimals?", "sql": "SELECT nationality, ROUND(AVG(ltv_sar), 0) FROM customers GROUP BY nationality"},
+  {"q": "Which district has the highest total order value?", "sql": "SELECT c.district FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.district ORDER BY SUM(o.order_value_sar) DESC LIMIT 1"},
+  {"q": "On average, how many minutes later than estimated are deliveries, rounded to 1 decimal?", "sql": "SELECT ROUND(AVG(actual_delivery_min - estimated_delivery_min), 1) FROM orders"},
+  {"q": "Which category has the longest average actual delivery time?", "sql": "SELECT category FROM orders GROUP BY category ORDER BY AVG(actual_delivery_min) DESC LIMIT 1"},
+  {"q": "How many orders were placed on weekends?", "sql": "SELECT COUNT(*) FROM orders o JOIN dates d ON d.date_key = o.order_date_key WHERE d.is_weekend = 1"},
+  {"q": "How many orders were placed in each quarter of 2025?", "sql": "SELECT d.quarter, COUNT(*) FROM orders o JOIN dates d ON d.date_key = o.order_date_key WHERE o.order_date_key LIKE '2025%' GROUP BY d.quarter"},
+  {"q": "Which competitor platform has the most points of interest listed?", "sql": "SELECT competitor_platform FROM competitors GROUP BY competitor_platform ORDER BY COUNT(*) DESC LIMIT 1"},
+  {"q": "What is the average commission percentage per competitor platform, rounded to 1 decimal?", "sql": "SELECT competitor_platform, ROUND(AVG(commission_pct), 1) FROM competitors GROUP BY competitor_platform"},
+  {"q": "Which competitor POI has the highest gap score? Return its name.", "sql": "SELECT poi_name FROM competitors ORDER BY gap_score DESC LIMIT 1"},
+  {"q": "How many customers in each district, and how many competitor POIs in the same district?", "sql": "SELECT c.district, c.n, COALESCE(p.m, 0) FROM (SELECT district, COUNT(*) n FROM customers GROUP BY district) c LEFT JOIN (SELECT district, COUNT(*) m FROM competitors GROUP BY district) p ON p.district = c.district"},
+  {"q": "Which 3 customers spent the most in total? Return customer_id and total spend.", "sql": "SELECT customer_id, ROUND(SUM(order_value_sar), 2) FROM orders GROUP BY customer_id ORDER BY 2 DESC LIMIT 3"},
+  {"q": "كم عدد العملاء في فئة القيمة العالية (High Value)؟", "sql": "SELECT COUNT(*) FROM customers WHERE customer_segment = 'High Value'"},
+  {"q": "ما متوسط رسوم التوصيل بالريال لكل فئة طلب؟ قرّب إلى منزلتين عشريتين.", "sql": "SELECT category, ROUND(AVG(delivery_fee_sar), 2) FROM orders GROUP BY category"},
+  {"q": "ما الحي الذي فيه أكبر عدد من الطلبات من عملاء الفئة العمرية 18-24؟", "sql": "SELECT c.district FROM orders o JOIN customers c ON c.customer_id = o.customer_id WHERE c.age_range = '18-24' GROUP BY c.district ORDER BY COUNT(*) DESC LIMIT 1"}
+]
