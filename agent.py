@@ -90,10 +90,12 @@ def _text(content) -> str:
 
 def generate(state: State) -> State:
     lessons = load_lessons() if state.get("use_lessons") else []
+    # DELIBERATELY WEAKENED PROMPT - this branch exists only to prove the eval
+    # harness catches a prompt regression. Do not merge.
+    # Removed: the column names (table names only) and the storage-format hints.
     prompt = (
         "You write one SQLite query that answers the question.\n"
-        f"Schema:\n{schema()}\n"
-        "Booleans are stored as 0/1. Dates are TEXT 'YYYY-MM-DD'.\n"
+        f"Tables: {', '.join(line.split('(')[0] for line in schema().splitlines())}\n"
         + ("Lessons from past mistakes:\n- " + "\n- ".join(lessons) + "\n" if lessons else "")
         + (f"Your previous query:\n{state['sql']}\nfailed with: {state['error']}\n" if state.get("error") else "")
         + f"Question: {state['question']}\n"
