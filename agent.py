@@ -22,7 +22,7 @@ LESSONS = ROOT / "lessons.json"
 BACKEND = os.getenv("BACKEND", "gemini")
 if BACKEND == "gemini":
     from langchain_google_genai import ChatGoogleGenerativeAI
-    llm = ChatGoogleGenerativeAI(model=os.getenv("MODEL", "gemini-2.0-flash"), temperature=0)
+    llm = ChatGoogleGenerativeAI(model=os.getenv("MODEL", "gemini-flash-lite-latest"), temperature=0)
 else:
     from langchain_ollama import ChatOllama
     llm = ChatOllama(model=os.getenv("MODEL", "llama3.2"), temperature=0)
@@ -66,6 +66,13 @@ def run_sql(sql: str) -> list:
         con.close()
 
 
+def _text(content) -> str:
+    """Normalize a chat response's .content: Gemini returns a list of parts, Ollama a plain str."""
+    if isinstance(content, list):
+        return "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in content)
+    return content
+
+
 def generate(state: State) -> State:
     lessons = load_lessons() if state.get("use_lessons") else []
     prompt = (
@@ -77,7 +84,7 @@ def generate(state: State) -> State:
         + f"Question: {state['question']}\n"
         "Return only the SQL, no explanation, no code fences."
     )
-    sql = llm.invoke(prompt).content.strip().removeprefix("```sql").removeprefix("```").removesuffix("```").strip()
+    sql = _text(llm.invoke(prompt).content).strip().removeprefix("```sql").removeprefix("```").removesuffix("```").strip()
     return {"sql": sql, "attempts": state.get("attempts", 0) + 1}
 
 
@@ -90,11 +97,11 @@ def execute(state: State) -> State:
 
 
 def reflect(state: State) -> State:
-    lesson = llm.invoke(
+    lesson = _text(llm.invoke(
         f"Schema:\n{schema()}\nQuestion: {state['question']}\nSQL: {state['sql']}\nError: {state['error']}\n"
         "Write ONE short, general lesson (max 25 words) that would prevent this mistake on other questions. "
         "Return only the lesson."
-    ).content.strip()
+    ).content).strip()
     lessons = load_lessons()
     if lesson not in lessons:
         LESSONS.write_text(json.dumps(lessons + [lesson], ensure_ascii=False, indent=2), encoding="utf-8")

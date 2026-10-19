@@ -30,12 +30,17 @@ The eval set is 20 questions (17 English, 3 Arabic), each with a known-correct S
 |---|---|---|---|
 | Baseline, llama3.2 (1 try, no lessons) | 11/20 (55%) | 1.00 | 92 |
 | Reflexion, llama3.2 (3 tries + lessons) | 10/20 (50%) | 1.30 | 133 |
-| Gemini | _run eval.py_ | | |
+| Baseline, gemini-flash-lite-latest (1 try, no lessons) | 20/20 (100%) | 1.00 | 35 |
+| Reflexion, gemini-flash-lite-latest (3 tries + lessons) | 20/20 (100%) | 1.00 | 105 |
 
 llama3.2 (local, free, 3B) was the first backend tried — Reflexion actually
 scored *worse* than a single try, likely too small a model to use its own
-self-written lessons well. Gemini is the current default for better SQL
-accuracy, still free.
+self-written lessons well. Gemini's free-tier `flash-lite` model gets
+100% on both modes — no Reflexion retries needed on this eval set. The
+default model is `gemini-flash-lite-latest`, not the newest `gemini-3.8-flash`
+flagship: that one's free tier is capped at 20 requests/day (hit the wall
+during testing), while `flash-lite` has a much higher free quota and was
+just as accurate here.
 
 ## Run
 
@@ -54,7 +59,8 @@ pytest -q                                        # safety tests
 Backend is picked by `BACKEND` in `.env` — `gemini` (default, needs
 `GOOGLE_API_KEY`) or `ollama` (fully local/free, needs `ollama pull llama3.2`
 and `ollama serve` running). `MODEL` picks the specific model within
-whichever backend.
+whichever backend. Default Gemini model is `gemini-flash-lite-latest`
+(higher free-tier quota than the newest flagship model).
 
 ## Responsible AI
 
